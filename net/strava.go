@@ -46,11 +46,9 @@ func (t *TokenInfo) Print() {
 	fmt.Printf("the token expires in %02d:%02d:%02d (will be automatically refreshed)\n\n", t.ExpiresHours, t.ExpiresMin, t.ExpiresSec)
 }
 
-// GetTokenInfo gets information about the access token - because the access token expires every 6 hours - and returns
-// a TokenInfo and nil if successful. Returns a TokenInfo with default values and the error if one occurs.
-// With the refresh token a new access token can be requested.
-// See the Strava API documentation for information about how to get client id, client secret and refresh token.
-func GetTokenInfo(clientId, clientSecret, refreshToken string) (TokenInfo, error) {
+// NewTokenInfo gets information about the access token - because the access token expires every 6 hours - and returns
+// a *TokenInfo and nil if successful. Returns nil and the error if one occurs.
+func NewTokenInfo(clientId, clientSecret, refreshToken string) (*TokenInfo, error) {
 	params := map[string]interface{}{
 		"client_id":     clientId,
 		"client_secret": clientSecret,
@@ -61,14 +59,17 @@ func GetTokenInfo(clientId, clientSecret, refreshToken string) (TokenInfo, error
 	body, statusCode, err := MakePOSTRequest(StravaOAuth, params)
 
 	if err != nil {
-		return TokenInfo{}, err
+		return nil, err
 	}
 
-	var tokenInfo TokenInfo
-	if err := json.Unmarshal(body, &tokenInfo); err != nil {
-		return TokenInfo{}, errors.New(
-			fmt.Sprintf("status code is %d. cannot parse this response: %v\n", statusCode, string(body)))
+	tokenInfo := new(TokenInfo)
+	if err := json.Unmarshal(body, tokenInfo); err != nil {
+		return nil, errors.New(
+			fmt.Sprintf("Error: %v\nstatus code is %d. cannot parse this response:\n%v\n",
+				err, statusCode, string(body)))
 	}
+
+	tokenInfo.ParseTime()
 
 	return tokenInfo, nil
 }
