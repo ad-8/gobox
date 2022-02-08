@@ -1,17 +1,77 @@
 package net
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	goboxtime "github.com/ad-8/gobox/time"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 )
 
 const (
+	StravaOAuth              = "https://www.strava.com/oauth/token"
 	StravaActivitiesEndpoint = "https://www.strava.com/api/v3/athlete/activities"
 	MaxAllowedPerPage        = 200
 )
 
+// TokenInfo represents the response that contains information about the Strava access token.
+// Thank you https://mholt.github.io/json-to-go/
+type TokenInfo struct {
+	TokenType    string `json:"token_type"`
+	AccessToken  string `json:"access_token"`
+	ExpiresAt    int    `json:"expires_at"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresHours int    `json:"-"`
+	ExpiresMin   int    `json:"-"`
+	ExpiresSec   int    `json:"-"`
+}
+
+func (t *TokenInfo) ParseTime() {
+	simpleTime, err := goboxtime.SecondsToHrsMinSec(t.ExpiresIn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.ExpiresHours = simpleTime.H
+	t.ExpiresMin = simpleTime.M
+	t.ExpiresSec = simpleTime.S
+}
+
+func (t *TokenInfo) Print() {
+	//fmt.Printf("access token = %s\n\n", t.AccessToken)
+	fmt.Printf("the token expires in %02d:%02d:%02d (will be automatically refreshed)\n\n", t.ExpiresHours, t.ExpiresMin, t.ExpiresSec)
+}
+
+// GetTokenInfo gets information about the access token - because the access token expires every 6 hours - and returns
+// a TokenInfo and nil if successful. Returns a TokenInfo with default values and the error if one occurs.
+// With the refresh token a new access token can be requested.
+// See the Strava API documentation for information about how to get client id, client secret and refresh token.
+func GetTokenInfo(clientId, clientSecret, refreshToken string) (TokenInfo, error) {
+	params := map[string]interface{}{
+		"client_id":     clientId,
+		"client_secret": clientSecret,
+		"refresh_token": refreshToken,
+		"grant_type":    "refresh_token",
+	}
+
+	body, statusCode, err := MakePOSTRequest(StravaOAuth, params)
+
+	if err != nil {
+		return TokenInfo{}, err
+	}
+
+	var tokenInfo TokenInfo
+	if err := json.Unmarshal(body, &tokenInfo); err != nil {
+		return TokenInfo{}, errors.New(
+			fmt.Sprintf("status code is %d. cannot parse this response: %v\n", statusCode, string(body)))
+	}
+
+	return tokenInfo, nil
+}
 
 // StravaActivity represents https://developers.strava.com/docs/reference/#api-models-SummaryActivity
 // Thank you https://mholt.github.io/json-to-go/
