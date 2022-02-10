@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/ad-8/gobox/net"
 	goboxtime "github.com/ad-8/gobox/time"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -124,12 +123,10 @@ func getPage(accessToken string, pageNum int, m *SafeMap, wg *sync.WaitGroup) {
 // at once, one may need to run this function multiple times while incrementing pageNum from 1 to n, until the response
 // data equals "[]", so the un-marshaled slice of type StravaActivity is empty.
 func requestActivitiesFromPage(accessToken string, pageNum int) ([]byte, error) {
-	client := &http.Client{}
 	req, err := http.NewRequest(http.MethodGet, StravaActivitiesEndpoint, nil)
 	if err != nil {
 		return nil, err
 	}
-
 	req.Header = http.Header{
 		"Authorization": []string{"Bearer " + accessToken},
 	}
@@ -138,16 +135,9 @@ func requestActivitiesFromPage(accessToken string, pageNum int) ([]byte, error) 
 	q.Add("per_page", strconv.Itoa(MaxAllowedPerPage))
 	req.URL.RawQuery = q.Encode()
 
-	resp, err := client.Do(req)
+	resp, _, err := net.MakeGETRequest(req)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
+	return resp, nil
 }

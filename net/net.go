@@ -28,3 +28,22 @@ func MakePOSTRequest(targetURL string, params map[string]interface{}) ([]byte, i
 
 	return respBody, resp.StatusCode, nil
 }
+
+// MakeGETRequest makes an HTTP GET request with the parameters specified in req
+// and returns its body and nil if successful.
+func MakeGETRequest(req *http.Request) ([]byte, int, error) {
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return respBody, resp.StatusCode, nil
+}
