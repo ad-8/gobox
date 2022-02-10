@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -74,73 +75,54 @@ func NewTokenInfo(clientId, clientSecret, refreshToken string) (*TokenInfo, erro
 	return tokenInfo, nil
 }
 
-// StravaActivity represents https://developers.strava.com/docs/reference/#api-models-SummaryActivity
-// Thank you https://mholt.github.io/json-to-go/
-type StravaActivity struct {
-	ResourceState int `json:"resource_state"`
-	Athlete       struct {
-		ID            int `json:"id"`
-		ResourceState int `json:"resource_state"`
-	} `json:"athlete"`
-	Name               string      `json:"name"`
-	Distance           float64     `json:"distance"`
-	MovingTime         int         `json:"moving_time"`
-	ElapsedTime        int         `json:"elapsed_time"`
-	TotalElevationGain float64     `json:"total_elevation_gain"`
-	Type               string      `json:"type"`
-	WorkoutType        interface{} `json:"workout_type"`
-	ID                 int64       `json:"id"`
-	ExternalID         string      `json:"external_id"`
-	UploadID           int64       `json:"upload_id"`
-	StartDate          time.Time   `json:"start_date"`
-	StartDateLocal     time.Time   `json:"start_date_local"`
-	Timezone           string      `json:"timezone"`
-	UtcOffset          float64     `json:"utc_offset"`
-	StartLatlng        interface{} `json:"start_latlng"`
-	EndLatlng          interface{} `json:"end_latlng"`
-	LocationCity       interface{} `json:"location_city"`
-	LocationState      interface{} `json:"location_state"`
-	LocationCountry    string      `json:"location_country"`
-	AchievementCount   int         `json:"achievement_count"`
-	KudosCount         int         `json:"kudos_count"`
-	CommentCount       int         `json:"comment_count"`
-	AthleteCount       int         `json:"athlete_count"`
-	PhotoCount         int         `json:"photo_count"`
-	Map                struct {
-		ID              string      `json:"id"`
-		SummaryPolyline interface{} `json:"summary_polyline"`
-		ResourceState   int         `json:"resource_state"`
-	} `json:"map"`
-	Trainer              bool    `json:"trainer"`
-	Commute              bool    `json:"commute"`
-	Manual               bool    `json:"manual"`
-	Private              bool    `json:"private"`
-	Flagged              bool    `json:"flagged"`
-	GearID               string  `json:"gear_id"`
-	FromAcceptedTag      bool    `json:"from_accepted_tag"`
-	AverageSpeed         float64 `json:"average_speed"`
-	MaxSpeed             float64 `json:"max_speed"`
-	AverageCadence       float64 `json:"average_cadence"`
-	AverageWatts         float64 `json:"average_watts"`
-	WeightedAverageWatts int     `json:"weighted_average_watts"`
-	Kilojoules           float64 `json:"kilojoules"`
-	DeviceWatts          bool    `json:"device_watts"`
-	HasHeartrate         bool    `json:"has_heartrate"`
-	AverageHeartrate     float64 `json:"average_heartrate"`
-	MaxHeartrate         float64 `json:"max_heartrate"`
-	MaxWatts             int     `json:"max_watts"`
-	PrCount              int     `json:"pr_count"`
-	TotalPhotoCount      int     `json:"total_photo_count"`
-	HasKudoed            bool    `json:"has_kudoed"`
-	SufferScore          int     `json:"suffer_score"`
+// GetAllActivities queries the Strava API for all activities of a user using an access token
+// and returns the data structured in a *SafeMap.
+// The access token must have read_all scope.
+func GetAllActivities(info TokenInfo, maxPages int) (*SafeMap, error) {
+	allActivities := SafeMap{V: make(map[int][]StravaActivity)}
+
+	var wg sync.WaitGroup
+	for pageNum := 1; pageNum <= maxPages; pageNum++ {
+		fmt.Printf("starting goroutine for page %d\n", pageNum)
+		wg.Add(1)
+		go getPage(info.AccessToken, pageNum, &allActivities, &wg)
+	}
+	wg.Wait()
+
+	return &allActivities, nil
 }
 
-// GetAllStravaActivitiesFromOnePage makes an HTTP GET request to get all user activities from one page and
+// getPage queries the Strava API for all activities on the specified page.
+// This function runs in multiple goroutines and writes its result to the provided SafeMap m.
+func getPage(accessToken string, pageNum int, m *SafeMap, wg *sync.WaitGroup) {
+	start := time.Now()
+	fmt.Printf("inside getPage %d\n", pageNum)
+
+	var activitiesOnPage []StravaActivity
+	body, _ := requestActivitiesFromPage(accessToken, pageNum)
+
+	if string(body) == "[]" {
+		fmt.Printf("goroutine %d done in %v -- response body is %v\n", pageNum, time.Since(start), string(body))
+		wg.Done()
+		return
+	}
+
+	if err := json.Unmarshal(body, &activitiesOnPage); err != nil {
+		fmt.Println(string(body))
+		log.Fatal(err)
+	}
+
+	m.Add(activitiesOnPage, pageNum)
+
+	fmt.Printf("goroutine %d done in %v\n", pageNum, time.Since(start))
+	wg.Done()
+}
+
+// requestActivitiesFromPage makes an HTTP GET request to get all user activities from one page and
 // returns the data and nil if successful. Because only a maximum of 200 activities can be requested
 // at once, one may need to run this function multiple times while incrementing pageNum from 1 to n, until the response
 // data equals "[]", so the un-marshaled slice of type StravaActivity is empty.
-// The access token must have read_all scope. Returns nil and the error if one occurs.
-func GetAllStravaActivitiesFromOnePage(accessToken string, pageNum int) ([]byte, error) {
+func requestActivitiesFromPage(accessToken string, pageNum int) ([]byte, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest(http.MethodGet, StravaActivitiesEndpoint, nil)
 	if err != nil {
