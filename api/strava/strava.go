@@ -1,9 +1,10 @@
-package net
+package strava
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ad-8/gobox/net"
 	goboxtime "github.com/ad-8/gobox/time"
 	"io/ioutil"
 	"log"
@@ -57,7 +58,7 @@ func NewTokenInfo(clientId, clientSecret, refreshToken string) (*TokenInfo, erro
 		"grant_type":    "refresh_token",
 	}
 
-	body, statusCode, err := MakePOSTRequest(StravaOAuth, params)
+	body, statusCode, err := net.MakePOSTRequest(StravaOAuth, params)
 
 	if err != nil {
 		return nil, err
