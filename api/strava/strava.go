@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	StravaOAuth              = "https://www.strava.com/oauth/token"
-	StravaActivitiesEndpoint = "https://www.strava.com/api/v3/athlete/activities"
-	MaxAllowedPerPage        = 200
+	StravaOAuth                 = "https://www.strava.com/oauth/token"
+	StravaActivitiesEndpoint    = "https://www.strava.com/api/v3/athlete/activities"
+	MaxActivitiesAllowedPerPage = 200 // to minimize number of requests, got only 1000 per day
 )
 
 // TokenInfo represents the response that contains information about the Strava access token.
@@ -132,7 +132,7 @@ func requestActivitiesFromPage(accessToken string, pageNum int) ([]byte, error) 
 	}
 	q := req.URL.Query()
 	q.Add("page", strconv.Itoa(pageNum))
-	q.Add("per_page", strconv.Itoa(MaxAllowedPerPage))
+	q.Add("per_page", strconv.Itoa(MaxActivitiesAllowedPerPage))
 	req.URL.RawQuery = q.Encode()
 
 	resp, _, err := net.MakeGETRequest(req)

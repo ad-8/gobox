@@ -29,8 +29,8 @@ func MakePOSTRequest(targetURL string, params map[string]interface{}) ([]byte, i
 	return respBody, resp.StatusCode, nil
 }
 
-// MakeGETRequest makes an HTTP GET request with the parameters specified in req
-// and returns its body and nil if successful.
+// MakeGETRequest makes an HTTP GET request with the parameters specified in req and returns its body,
+// status code and nil if successful. Returns nil, 0 and the error if one occurs.
 func MakeGETRequest(req *http.Request) ([]byte, int, error) {
 	client := &http.Client{}
 

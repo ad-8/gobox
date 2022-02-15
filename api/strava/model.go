@@ -1,7 +1,6 @@
 package strava
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -81,11 +80,11 @@ func (m *SafeMap) Add(a []StravaActivity, pageNum int) {
 	m.mu.Unlock()
 }
 
-// PrintTotal prints the total number of activities found in m.
-func (m *SafeMap) PrintTotal() {
+// GetTotal returns the total number of activities found in m.
+func (m *SafeMap) GetTotal() int {
 	total := 0
 	for _, as := range m.V {
 		total += len(as)
 	}
-	fmt.Printf("downloaded %d activities\n", total)
+	return total
 }
