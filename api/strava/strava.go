@@ -8,6 +8,7 @@ import (
 	goboxtime "github.com/ad-8/gobox/time"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -76,9 +77,9 @@ func NewTokenInfo(clientId, clientSecret, refreshToken string) (*TokenInfo, erro
 }
 
 // GetAllActivities queries the Strava API for all activities of a user using an access token
-// and returns the data structured in a *SafeMap.
+// and returns all activities, sorted by date (the newest activity is the first element).
 // The access token must have read_all scope.
-func GetAllActivities(info TokenInfo, maxPages int) (*SafeMap, error) {
+func GetAllActivities(info TokenInfo, maxPages int) ([]StravaActivity, error) {
 	allActivities := SafeMap{V: make(map[int][]StravaActivity)}
 
 	var wg sync.WaitGroup
@@ -89,7 +90,25 @@ func GetAllActivities(info TokenInfo, maxPages int) (*SafeMap, error) {
 	}
 	wg.Wait()
 
-	return &allActivities, nil
+	sorted := sortActivities(&allActivities)
+
+	return sorted, nil
+}
+
+// sortActivities first flattens and then sorts (by date, the newest activity first) all activities in m.V.
+func sortActivities(m *SafeMap) []StravaActivity {
+	var all []StravaActivity
+	for _, page := range m.V {
+		for _, activity := range page {
+			all = append(all, activity)
+		}
+	}
+
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].StartDateLocal.After(all[j].StartDateLocal)
+	})
+
+	return all
 }
 
 // getPage queries the Strava API for all activities on the specified page.
