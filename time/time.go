@@ -1,6 +1,11 @@
 package time
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
+
+var ErrNegativeSeconds = errors.New("seconds must be >= 0")
 
 type SimpleTime struct {
 	H int
@@ -10,7 +15,7 @@ type SimpleTime struct {
 
 func SecondsToHrsMinSec(seconds int) (SimpleTime, error) {
 	if seconds < 0 {
-		return SimpleTime{}, errors.New("seconds must be >= 0")
+		return SimpleTime{}, fmt.Errorf("SecondsToHrsMinSec failed: %w", ErrNegativeSeconds)
 	}
 
 	m, s := divmod(seconds, 60)

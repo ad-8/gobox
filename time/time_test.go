@@ -1,6 +1,7 @@
 package time
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -11,7 +12,6 @@ func TestSecondsToHrsMinSec(t *testing.T) {
 		got  int
 		want SimpleTime
 	}{
-		//{"negative seconds", -1, SimpleTime{0, 0, 0}}, // TODO implement correctly
 		{"00:00:00", 0, SimpleTime{0, 0, 0}},
 		{"1:02:03", 3723, SimpleTime{1, 2, 3}},
 		{"3:25:45", 12345, SimpleTime{3, 25, 45}},
@@ -28,5 +28,13 @@ func TestSecondsToHrsMinSec(t *testing.T) {
 				t.Errorf("\ngot %v\nwant %v", tc.got, tc.want)
 			}
 		})
+	}
+}
+
+func TestSecondsToHrsMinSecWithNegativeInput(t *testing.T) {
+	_, err := SecondsToHrsMinSec(-1)
+
+	if !errors.Is(err, ErrNegativeSeconds) {
+		t.Errorf("got '%v' but wanted '%v'", err, ErrNegativeSeconds)
 	}
 }
