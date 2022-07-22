@@ -16,8 +16,8 @@ type SimpleTime struct {
 }
 
 type CalendarWeek struct {
-	year int
-	week int
+	Year int
+	Week int
 }
 
 func SecondsToHrsMinSec(seconds int) (SimpleTime, error) {
